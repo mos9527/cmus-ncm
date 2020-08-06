@@ -53,7 +53,7 @@ if [[ -f "cmus-ncm" ]];then
 else
     # Try to download the script
     echo "[+] Downloading cmus-ncm form its repo"
-    if ! curl -o cmus-ncm ${repo}/blob/master/cmus-ncm ; then
+    if ! curl -o cmus-ncm  https://raw.githubusercontent.com/greats3an/cmus-ncm/master/cmus-ncm ; then
         echo "[!] Failed to download the script using 'curl'!"
         echo "[!] You may want to download the script manualy through the github page"
         exit
