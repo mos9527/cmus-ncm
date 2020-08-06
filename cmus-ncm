@@ -14,7 +14,12 @@ parser.add_argument(
 ''')
 parser.add_argument('id',metavar='ID',help='''The said ID. 
 
-Other arguments are determined by PyNCM\'s config file.see https://github.com/greats3an/pyncm for more info''')
+Other arguments are determined by PyNCM\'s config file.
+
+see https://github.com/greats3an/pyncm 
+    https://github.com/greats3an/cmus-ncm
+for more info''')
+
 parser.parse_args()
 _type,id = parser.parse_args().__dict__.values()
 
