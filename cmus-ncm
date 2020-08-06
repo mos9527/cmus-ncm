@@ -24,22 +24,34 @@ config = json.loads(config)
 output = config['misc']['output']
 
 # Compose the command
-command = [sys.executable,'-m','pyncm',_type,'--id',id]
+command = [sys.executable,'-m','pyncm',_type,'--id',id,'--report-output','stdout']
 stderr.write(f'[+] Using command {" ".join(command)}\n')
 stderr.write(f'[+] Output folder {output}\n')
-result = subprocess.run(command,stderr=stderr)
 
-if result.returncode == 0:
+os.system(f'cmus-remote -C "echo cmus-ncm is working...{_type} {id}"')
+
+process = subprocess.Popen(command,stderr=stderr,stdout=subprocess.PIPE)
+returncode = None
+while returncode == None:
+    returncode = process.poll()
+    # Break the loop once process is done
+    newline,newchar = '',process.stdout.read(1)
+    while len(newchar) > 0 and not ord(newchar) in [ord('\r'),ord('\n')]:
+        # The linebreaks are '\r' or '\n'                     
+        newline += chr(newchar[0])
+        newchar = process.stdout.read(1)                   
+    if newline:os.system(f'cmus-remote -C "echo {newline}"')
+
+if returncode == 0:
     stderr.write(f'[+] Command executed successfully\n')
 else:
     stderr.write(f'[+] Command failed! Exiting...\n')
+    os.system(f'cmus-remote -C "echo cmus-ncm {_type} {id} failed!"')
     sys.exit(1)
 
 # Control C* via cmus-remote
 os.system('cmus-remote -C "clear"')
 os.system(f'cmus-remote -C "add {output}"')
 os.system('cmus-remote -C "update-cache"')
-
+os.system('cmus-remote -C "echo cmus-ncm has added the songs to your library"')
 sys.exit(0)
-
-# 
