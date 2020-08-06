@@ -1,2 +1,45 @@
 # This is a Python script. The executable path should be added by `setup`
-# WIP,this is the inital commit
+import argparse,subprocess,sys,json,os
+
+stderr = open('last-exec.log','w',encoding='utf-8')
+# All the logs,both produced by PyNCM and this script will be outputed to `last-exec.log`
+parser = argparse.ArgumentParser(
+    description='Netease Cloud Music proxy for C* Music player',formatter_class=argparse.RawTextHelpFormatter
+)
+parser.add_argument(
+    'type',metavar='TYPE',help='''What type of ID is supplied
+[song]      The ID is for a song
+[album]     The ID is for an album
+[playlist]  The ID is for a playlist    
+''')
+parser.add_argument('id',metavar='ID',help='''The said ID. 
+
+Other arguments are determined by PyNCM\'s config file.see https://github.com/greats3an/pyncm for more info''')
+parser.parse_args()
+_type,id = parser.parse_args().__dict__.values()
+
+# Load config from PyNCM for output folder
+config = subprocess.run([sys.executable,'-m','pyncm','viewcfg'],capture_output=True).stdout.decode()
+config = json.loads(config)
+output = config['misc']['output']
+
+# Compose the command
+command = [sys.executable,'-m','pyncm',_type,'--id',id]
+stderr.write(f'[+] Using command {" ".join(command)}\n')
+stderr.write(f'[+] Output folder {output}\n')
+result = subprocess.run(command,stderr=stderr)
+
+if result.returncode == 0:
+    stderr.write(f'[+] Command executed successfully\n')
+else:
+    stderr.write(f'[+] Command failed! Exiting...\n')
+    sys.exit(1)
+
+# Control C* via cmus-remote
+os.system('cmus-remote -C "clear"')
+os.system(f'cmus-remote -C "add {output}"')
+os.system('cmus-remote -C "update-cache"')
+
+sys.exit(0)
+
+# 
