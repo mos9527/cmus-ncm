@@ -2,9 +2,9 @@
 
 #* Presquite - Checking Python version
 repo="http://github.com/greats3an/cmus-ncm"
+interpreter=($1 'python3' 'python')
+# Use the first argument as optional interper
 function get_python() {
-    interpreter=($1 'python3' 'python')
-    # Use the first argument as optional interper
     if [[ ! -n $1 ]]; then
         echo $(get_python 0)
         exit
