@@ -3,7 +3,8 @@
 #* Presquite - Checking Python version
 repo="http://github.com/greats3an/cmus-ncm"
 function get_python() {
-    interpreter=('python3' 'python')
+    interpreter=($1 'python3' 'python')
+    # Use the first argument as optional interper
     if [[ ! -n $1 ]]; then
         echo $(get_python 0)
         exit
@@ -43,6 +44,7 @@ echo [-] Installing PyNCM
 if ! ${interpreter} -m pip install -U pyncm ; then 
     echo [!] The module did not get installed correctly
     echo [-] Check if 'pip' was installed.The script will exit now
+    exit
 fi
 
 #* Aqquiring the script

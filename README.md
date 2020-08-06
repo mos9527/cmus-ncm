@@ -3,4 +3,7 @@
 
 # 安装
 *请先安装好 Python 3.X 版本*
-bash <(curl -s https://raw.githubusercontent.com/greats3an/cmus-ncm/master/setup)
+    
+    `curl https://raw.githubusercontent.com/greats3an/cmus-ncm/master/setup | bash -s [python 命令]`
+    e.g.`curl https://raw.githubusercontent.com/greats3an/cmus-ncm/master/setup | bash -s python3.8`
+
