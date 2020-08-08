@@ -231,8 +231,8 @@ class Subthread(Thread):
                     UpdateLyrics(['No lyrics available'])
                     return False
                 maxLines = Wlyrics.getmaxyx()[0]
-                p,a = maxLines // 2 ,maxLines - maxLines // 2
-                # the count for lyrics from P-revious line and A-fter lines
+                p = maxLines // 2 
+                # the count for lyrics from P-revious 
                 currentTimestamp            = self.status['position'][0]
                 find                        = self.lrc.find(currentTimestamp) # m -> modified
                 if find:
@@ -244,9 +244,10 @@ class Subthread(Thread):
                 # where the key is the matching timestamp,value is the lyics itself               
                 UpdateTitle(f'{fTimestamp} / {mTimestamp}s - {currentTimestamp}s ' + fLyrics.replace("\t"," "))
                 # use normal spaces to avoid splitting into rows
-                pS,aE = mIndex - p - 1,mIndex + a + 1
-                # previous S-tarting & A-fter ending index
-                pS,aE = pS if pS >= 0 else 0,aE if aE <= len(self.lrc.lyrics.keys()) else len(self.lrc.lyrics.keys())
+                pS = mIndex - p - 1 
+                # previous S-tarting index
+                pS = pS if pS >= 0 else 0
+                aE = pS + maxLines            
                 lines = [i[1] for i in list(self.lrc.lyrics.values())[pS:aE]]
                 UpdateLyrics(lines,lines.index(fLyrics))                
                 return True
