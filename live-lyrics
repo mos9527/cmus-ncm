@@ -211,7 +211,7 @@ class Subthread(Thread):
             def CheckStatus():
                 if not status:
                     # No status;
-                    UpdateStatus('Lost connection to cmus！')
+                    UpdateStatus('Lost connection to cmus!')
                     return False
                 else:
                     # Status aquired
@@ -226,8 +226,8 @@ class Subthread(Thread):
                             return True                        
                         self.lrc = LrcParser(open(path,encoding='utf-8').read())                    
                     # update current status                    
-                    UpdateStatus(self.status_string())
                     self.status = status
+                    UpdateStatus(self.status_string())                    
                     return True
             def UpdateLRC():
                 if not self.lrc:
