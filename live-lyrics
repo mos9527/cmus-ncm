@@ -20,13 +20,13 @@ def LrcProperty(func):
         try:
             return func(*a,**k)
         except Exception as e:
-            sys.stderr.write('[!] Error while getting lyrics attribute %s:%s' % (func.__name__,e))
-            return "Undefined"        
+            # sys.stderr.write('[!] Error while getting lyrics attribute %s:%s' % (func.__name__,e))
+            return None        
     return wrapper
 
 class LrcRegexes:
     LIDTag_= re.compile(r'(?<=\[)[^\[\]]*(?=\])')
-    LIDTag_Type = re.compile(r'[a-z]{2}(?=:)')
+    LIDTag_Type = re.compile(r'[a-z]{2,}(?=:)')
     LIDTag_Content = re.compile(r'(?<=[a-z]{2}:).*')
     LLyrics_ = re.compile(r'(?<=\]).*')
     LBrackets = re.compile(r'(?<=\[).*(?=\])')
@@ -76,8 +76,9 @@ class LrcParser:
                 timestamp = 0
                 try:
                     mm,ss = IDTag.split(':') 
-                    ss,xx = ss.split('.') # xx is hunderth of a second
-                    timestamp = int(mm) * 60 + int(ss) + int(xx) * 0.01 # round them up as we don't need millisecond percison here
+                    ss,xx = ss.split('.') # xx is hunderth of a second,but NE didn't think so
+                    timestamp = int(mm) * 60 + int(ss) + int(xx) * (0.1 ** len(xx)) # <- workaround
+                    if self.Offset:timestamp += float(self.Offset)
                 except:
                     pass
                 self.lyrics[timestamp] = (IDTag,Lyrics)
