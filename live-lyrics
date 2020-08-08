@@ -106,7 +106,7 @@ class LrcParser:
 def ReadCmusStatus() -> dict:
     process = subprocess.run(['cmus-remote','-Q'],capture_output=True)
     if not process.returncode == 0:
-        return sys.stderr.write(f'[!] cmus-remote exited with errorcode {process.returncode}\n') * 0 # helpful for checking is the output valiad
+        return 0 # sys.stderr.write(f'[!] cmus-remote exited with errorcode {process.returncode}\n') * 0 # helpful for checking is the output valiad
     else:
         result = defaultdict(list)
         for k,v in [(l[:l.index(' ')],l[l.index(' ') + 1:]) for l in process.stdout.decode().split('\n') if ' ' in l]:result[k].append(v)
