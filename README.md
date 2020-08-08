@@ -1,12 +1,19 @@
+# 安装
+**请先安装好 Python 3.X 版本**，使用以下脚本可快速完成安装
+	
+	curl https://raw.githubusercontent.com/greats3an/cmus-ncm/master/setup | bash -s [Python 解释器]
+e.g. `curl https://raw.githubusercontent.com/greats3an/cmus-ncm/master/setup | bash -s python3.8`
+	在随后的选项中，选择 1 安装 cmus-ncm
+
 # cmus-ncm
 用于 [C* Music Player](https://cmus.github.io/) 的 [网易云音乐](https://music.163.com/) 解析插件
 
 # 安装
-**请先安装好 Python 3.X 版本**，然后该命令即可一键完成安装
+**请先安装好 Python 3.X 版本**，使用以下脚本可快速完成安装
 	
 	curl https://raw.githubusercontent.com/greats3an/cmus-ncm/master/setup | bash -s [Python 解释器]
 e.g. `curl https://raw.githubusercontent.com/greats3an/cmus-ncm/master/setup | bash -s python3.8`
-
+	在随后的选项中，选择 1 安装 cmus-ncm
 # 使用
 ## 配置
 同 [PyNCM](https://github.com/greats3an/pyncm) 配置方法
@@ -36,7 +43,25 @@ cmus-ncm 支持三类网易云音乐资源的解析：
 	`:shell cmus-ncm playlist 36890629`
 - 将 [The Eminem Show - **专辑**](https://music.163.com/#/album?id=3069044) 添加到播放列表
 	`:shell cmus-ncm album 3069044`
+
+## 歌词可视化
+### live-lyrics
+
+用于 [C* Music Player](https://cmus.github.io/) 的 LRC 歌词外挂显示工具
+
+#### 安装
+**请先安装好 Python 3.X 版本**，使用以下脚本可快速完成安装
 	
+	curl https://raw.githubusercontent.com/greats3an/cmus-ncm/master/setup | bash -s [Python 解释器]
+e.g. `curl https://raw.githubusercontent.com/greats3an/cmus-ncm/master/setup | bash -s python3.8`
+	在随后的选项中，选择 2 安装 live-lyrics
+
+#### 要求
+歌词 `(*.lrc)` 需要和歌曲文件同文件名，并在同一目录下
+
+#### 使用
+启动 `cmus` 后，在另一个终端内使用 `live-lyrics` 命令即可打开界面
+
 # Credits
 [cmus](https://cmus.github.io/)
 [PyNCM](https://github.com/greats3an/pyncm) 

@@ -1,9 +1,11 @@
 #!/bin/bash
 
 #* Presquite - Checking Python version
-repo="http://github.com/greats3an/cmus-ncm"
+repo="greats3an/cmus-ncm"
 interpreter=($1 'python3' 'python')
 # Use the first argument as optional interper
+executables=('cmus-ncm' 'live-lyrics')
+# What executable to install?
 function get_python() {
     if [[ ! -n $1 ]]; then
         echo $(get_python 0)
@@ -48,33 +50,41 @@ if ! ${interpreter} -m pip install -U pyncm ; then
 fi
 
 #* Aqquiring the script
-if [[ -f "cmus-ncm" ]];then
-    echo "[+] C* NCM Script already located!"
-else
-    # Try to download the script
-    echo "[+] Downloading cmus-ncm form its repo"
-    if ! curl -o cmus-ncm  https://raw.githubusercontent.com/greats3an/cmus-ncm/master/cmus-ncm ; then
-        echo "[!] Failed to download the script using 'curl'!"
-        echo "[!] You may want to download the script manualy through the github page"
-        exit
-    fi
-    echo "[+] Successfully downloaded the script"
+
+# Selecting an executbale
+echo [-] Choose an executable to install \(see README.md for more info\)
+select executable in ${executables[@]}; do
+if [[ ! -n $executable ]] ; then 
+    echo [!] Bad selection! The script will exit now
+    exit 1
 fi
+echo [+] Installing ${executable}
+break
+done
+
+# Try to download the script
+echo "[+] Downloading ${executable} form its repo"
+if ! curl -o ${executable} https://raw.githubusercontent.com/${repo}/master/${executable} ; then
+    echo "[!] Failed to download the script using 'curl'!"
+    echo "[!] You may want to download the script manualy through the github page"
+    exit
+fi
+echo "[+] Successfully downloaded the script"
 
 #! Installing the script
 python_executable=`${interpreter} -c "import sys;print(sys.executable)"`
-(echo "#!${python_executable}" && cat cmus-ncm) > cmus-ncm-temp
+(echo "#!${python_executable}" && cat ${executable}) > ${executable}-temp
 # Create a tempoary file for adding the executable path to script
 
 echo "[-] Modifing permissions"
-chmod +x cmus-ncm-temp
+chmod +x ${executable}-temp
 
-echo "[!] 'cmus-ncm' will be copied to '/usr/local/bin'"
+echo "[!] '${executable}' will be copied to '/usr/local/bin'"
 
-if ! cp cmus-ncm-temp /usr/local/bin/cmus-ncm ; then
+if ! cp ${executable}-temp /usr/local/bin/${executable} ; then
     echo "[!] Cannot copy as current user"
     echo "[!] Trying to copy with 'sudo' "
-    if ! sudo cp cmus-ncm-temp /usr/local/bin/cmus-ncm ; then
+    if ! sudo cp ${executable}-temp /usr/local/bin/${executable} ; then
         echo "[!] Failed to copy with 'sudo'"
         echo "[-] You may want run this script as 'root' or change ownership of '/usr/local/bin' to continue"
         exit
@@ -84,6 +94,6 @@ echo "[-] Successfully copied the script"
 
 #* Finishing up
 # Removes old file
-rm cmus-ncm-temp
+rm ${executable}-temp
 echo "[+] The script is successfully installed"
-echo "[-] You may check ${repo} for usage and support"
+echo "[-] You may check https://github.com/${repo} for usage and support"

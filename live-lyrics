@@ -1,0 +1,273 @@
+# This is a Python script. The executable path should be added by `setup`
+# Still WIP,but already looks pretty promising
+
+from os import pathsep
+import re,time,sys,os
+from threading import Thread
+import subprocess
+from collections import defaultdict
+import curses,threading,unicodedata
+# region LRC Parser
+
+check_interval = 0.5
+
+# * Making the wheels again. I forgot that lrc parsers for python already exist while I was coding this lol
+
+def LrcProperty(func):
+    @property
+    def wrapper(*a,**k):
+        try:
+            return func(*a,**k)
+        except Exception as e:
+            sys.stderr.write('[!] Error while getting lyrics attribute %s:%s' % (func.__name__,e))
+            return "Undefined"        
+    return wrapper
+
+class LrcRegexes:
+    LIDTag_= re.compile(r'(?<=\[)[^\[\]]*(?=\])')
+    LIDTag_Type = re.compile(r'[a-z]{2}(?=:)')
+    LIDTag_Content = re.compile(r'(?<=[a-z]{2}:).*')
+    LLyrics_ = re.compile(r'(?<=\]).*')
+    LBrackets = re.compile(r'(?<=\[).*(?=\])')
+
+class LrcParser:
+    '''
+    Parses lrc into mutable Python objects
+    '''
+    # region Properties from Wikipedia [https://en.wikipedia.org/wiki/LRC_(file_format)]
+    @LrcProperty
+    def Artist(self):return self.ar 
+    @LrcProperty
+    def Album(self):return self.al
+    @LrcProperty
+    def Title(self):return self.ti
+    @LrcProperty
+    def Author(self):return self.au
+    @LrcProperty
+    def Length(self):return self.length
+    @LrcProperty
+    def LRCAuthor(self):return self.by
+    @LrcProperty
+    def Offset(self):return self.offset
+    @LrcProperty
+    def Program(self):return self.re
+    @LrcProperty
+    def ProgramVersion(self):return self.ve
+    # endregion
+
+    def __init__(self,lrc):
+        '''
+        Takes lyrics in `LRC` format,then provides lyrics based on timestamps
+        '''
+        # Parsing lrc,line by line
+        self.lyrics = {}
+        for line in lrc.split('\n'):
+            IDTag           = ''.join(LrcRegexes.LIDTag_.findall(line))
+            IDTagType       = ''.join(LrcRegexes.LIDTag_Type.findall(IDTag))
+            IDTagContent    = ''.join(LrcRegexes.LIDTag_Content.findall(IDTag))
+            Lyrics          = ''.join(LrcRegexes.LLyrics_.findall(line))
+            if IDTagType:
+                # Tag's type is set,write as class attribute
+                setattr(self,IDTagType,IDTagContent)
+            elif IDTag:
+                # Tag's type is not set but we got the values,treat as lyrics
+                # We'll use the timestamp (into seconds) as lyrics' keys,as hashtables can handle that
+                timestamp = 0
+                try:
+                    mm,ss = IDTag.split(':') 
+                    ss,xx = ss.split('.') # xx is hunderth of a second
+                    timestamp = int(int(mm) * 60 + int(ss) + int(xx) * 0.01) # round them up as we don't need millisecond percison here
+                except:
+                    pass
+                self.lyrics[timestamp] = (IDTag,Lyrics)
+    
+    def find(self,timestamp,lookahead=False):
+        '''Finds closest match in our hashable
+            
+            Returns `(timestamp_seconds,lyrics,indexof)`
+        '''
+        # Again,this is very inefficient as its big o notation's linear O(n)        
+        timestamp,delta_m,bestmatch,index=int(timestamp),-1,None,0
+        for ts,lr in self.lyrics.items(): # ts:timestamp,lr:lyrics
+            index += 1
+            delta_m_1 = ts - timestamp
+            if       lookahead and delta_m_1 >= 0:pass
+            elif not lookahead and delta_m_1 <= 0:pass
+            else:continue # Not satisfying the checks:either looked ahead but delta is negative or looked behind but delta is positve                          
+            delta_m_1 = abs(delta_m_1)
+            if delta_m < 0 or delta_m_1 <= delta_m:
+                # distance's lower,update
+                delta_m = delta_m_1
+                bestmatch = (ts,lr,index)
+        return bestmatch
+# endregion
+
+# region C* Related stuff
+def ReadCmusStatus() -> dict:
+    process = subprocess.run(['cmus-remote','-Q'],capture_output=True)
+    if not process.returncode == 0:
+        return sys.stderr.write(f'[!] cmus-remote exited with errorcode {process.returncode}\n') * 0 # helpful for checking is the output valiad
+    else:
+        result = defaultdict(list)
+        for k,v in [(l[:l.index(' ')],l[l.index(' ') + 1:]) for l in process.stdout.decode().split('\n') if ' ' in l]:result[k].append(v)
+        for k in ['tag','set']:result[k] = {s.split(' ')[0]:s[len(s.split(' ')[0]) + 1:] for s in result[k]}
+        return result
+# endregion
+
+# region Curses CLI stuff
+'''
+Design choices:
+
+L+1...............[TRACK TITLE]................
+L+2............[ LYRICS LINE -1 ]..............
+L -............[ LYRICS LINE 0  ]..............
+L-2............[ LYRICS LINE +1 ]..............
+L-1................[STATUS]....................
+'''
+stdscr,Wtitle,Wlyrics,Wstatus = (None,)*4
+def InitCurses(scr):# : curses._CursesWindow):
+    global stdscr,Wtitle,Wlyrics,Wstatus
+    stdscr  = scr
+    Wtitle  = curses.newwin(2,curses.COLS,0,0)
+    Wlyrics = curses.newwin(curses.LINES - 2,curses.COLS,1,0)
+    Wstatus = curses.newwin(2,curses.COLS,curses.LINES - 1,0)
+    curses.start_color()
+
+    curses.init_pair(1,curses.COLOR_WHITE,curses.COLOR_BLUE)
+    curses.init_pair(2,curses.COLOR_WHITE,curses.COLOR_BLACK)
+    curses.init_pair(3,curses.COLOR_YELLOW,curses.COLOR_BLACK)
+
+    curses.cbreak()
+    curses.noecho()
+    
+def RefreshAll():
+    stdscr.refresh()
+    Wtitle.refresh()
+    Wlyrics.refresh()
+    Wstatus.refresh()
+
+def JustifiyStr(string,mode='l',length=10,fill=' '):
+    '''Justify a string's display length (CJK Compatiable)'''
+    widthTotal,strTotal = 0,''
+    for c in string:
+        width = 2 if unicodedata.east_asian_width(c) in 'WFA' else 1
+        # CJK (east asian) chars are ususally 2 ASCII chars long in monospace fonts
+        if widthTotal + width > length:break
+        else:
+            widthTotal += width
+            strTotal += c
+    # pad with normal ASCII characters
+    if mode=='c':
+        remainder = length - widthTotal
+        strTotal += (remainder // 2) * fill
+        strTotal = (remainder - remainder // 2) * fill + strTotal            # Center-justify
+    elif mode=='r':strTotal = fill * (length - widthTotal) + strTotal        # Right-justify
+    else:strTotal += fill * (length - widthTotal)                            # Left-justify
+    return strTotal
+
+def ColumnifyStr(string,justify_mode='l') -> str:
+    '''Put anystring into the length of our console column
+    
+        When encoutering tabs (\t),such line of string will be divided into equally wide rows
+    '''
+    cols = curses.COLS - 1
+    tabs = string.split('\t')
+    row_width = cols // len(tabs)
+    tabs = [JustifiyStr(s,mode=justify_mode,length=row_width) for s in tabs]    
+    return '│'.join(tabs)
+
+def UpdateTitle(s):
+    Wtitle.addstr(0,0,ColumnifyStr(s),curses.color_pair(1))
+def UpdateStatus(s):
+    Wstatus.addstr(0,0,ColumnifyStr(s),curses.color_pair(1))
+def UpdateLyrics(lines,highlight_no = -1,j : str='l'):
+    if not len(lines) >= curses.LINES:
+        # padding with empty lines (centered)
+        dtotal = Wlyrics.getmaxyx()[0] - len(lines)
+        lines = lines + [''] * dtotal
+    for l in range(0,Wlyrics.getmaxyx()[0]):
+        tok = ColumnifyStr(lines[l],'c')
+        Wlyrics.addstr(l,0,tok,curses.color_pair(2 + (l == highlight_no)))
+def KillCurses():
+    curses.endwin()
+
+class Subthread(Thread):
+    def __init__(self,*a,**k):
+        self.status,self.lrc = [None] * 2
+        def spinner():
+            while True:
+                for _ in ['|','|','/','/','-','-']:yield _
+        self.spinner = spinner()
+        UpdateStatus('Connecting to cmus...')   
+        return super().__init__(*a,**k)
+    
+    def status_string(self):
+        return f'{self.status["status"][0].capitalize()} {next(self.spinner)} {self.status["file"][0]} | {self.status["position"][0]}s / {self.status["duration"][0]}s'
+
+    def run(self):        
+        while True:
+            status = ReadCmusStatus()
+            # Tries to read status from cmus
+            def CheckStatus():
+                if not status:
+                    # No status;
+                    UpdateStatus('Lost connection to cmus！')
+                    return False
+                else:
+                    # Status aquired
+                    if not self.status or not (self.status['file'] == status['file']):
+                        # file changed : reload lyrics
+                        path = '.'.join(status['file'][0].split('.')[:-1]) + '.lrc'                        
+                        if not os.path.isfile(path):
+                            # The lyrics cannot be located : might be a non-vocal track
+                            self.lrc = None
+                            return True
+                        self.lrc = LrcParser(open(path,encoding='utf-8').read())
+                        UpdateStatus('Loaded LRC from ' + path)
+                    else:
+                        UpdateStatus(self.status_string())
+                    # update current status
+                    self.status = status
+                    return True
+            def UpdateLRC():
+                if not self.lrc:
+                    UpdateLyrics(['纯音乐，请欣赏'])
+                    return False
+                maxLines = Wlyrics.getmaxyx()[0]
+                p,a = maxLines // 2 ,maxLines - maxLines // 2
+                # the count for lyrics from P-revious line and A-fter lines
+                currentTimestamp            = self.status['position'][0]
+                mTimestamp,mLyrics,mIndex   = self.lrc.find(currentTimestamp) # m -> modified
+                fTimestamp,fLyrics = mLyrics                                  # f -> formatted
+                # where the key is the matching timestamp,value is the lyics itself               
+                UpdateTitle(fLyrics.replace('\t',' ')) # use normal spaces to avoid splitting into rows
+                pS,aE = mIndex - p - 1,mIndex + a + 1
+                # previous S-tarting & A-fter ending index
+                pS,aE = pS if pS >= 0 else 0,aE if aE <= len(self.lrc.lyrics.keys()) else len(self.lrc.lyrics.keys())
+                lines = [i[1] for i in list(self.lrc.lyrics.values())[pS:aE]]
+                UpdateLyrics(lines,lines.index(fLyrics))                
+                return True
+            try:
+                CheckStatus() and UpdateLRC()
+                # a quite neat way of `abusing` python's conditonal checks
+            except:
+                pass                       
+            # -- self end --
+            RefreshAll()    
+            time.sleep(check_interval)
+
+def CursesMain(scr):
+    InitCurses(scr)
+    UpdateTitle('live-lyrics')     
+    # Start a subthread for checking cmus events
+    UpdateLyrics([],0)
+    RefreshAll()
+
+    Subthread(daemon=True).start()
+    while True:
+        keystroke = stdscr.getch()
+        if keystroke in [ord('q') , 27]:sys.exit(0) # Exit if q / Esc is pressed
+# endregion
+
+curses.wrapper(CursesMain)
+# Executes the script
