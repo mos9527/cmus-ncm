@@ -215,23 +215,23 @@ class Subthread(Thread):
                     return False
                 else:
                     # Status aquired
+                    UpdateStatus('Updating...')
                     if not self.status or not (self.status['file'] == status['file']):
                         # file changed : reload lyrics
-                        path = '.'.join(status['file'][0].split('.')[:-1]) + '.lrc'                        
+                        path = '.'.join(status['file'][0].split('.')[:-1]) + '.lrc'                                               
                         if not os.path.isfile(path):
-                            # The lyrics cannot be located : might be a non-vocal track
+                            # The lyrics cannot be located : might be a non-vocal track                        
+                            UpdateStatus('Lyrics file not found : ' + path)
                             self.lrc = None
-                            return True
-                        self.lrc = LrcParser(open(path,encoding='utf-8').read())
-                        UpdateStatus('Loaded LRC from ' + path)
-                    else:
-                        UpdateStatus(self.status_string())
-                    # update current status
+                            return True                        
+                        self.lrc = LrcParser(open(path,encoding='utf-8').read())                    
+                    # update current status                    
+                    UpdateStatus(self.status_string())
                     self.status = status
                     return True
             def UpdateLRC():
                 if not self.lrc:
-                    UpdateLyrics(['纯音乐，请欣赏'])
+                    UpdateLyrics(['No lyrics available'])
                     return False
                 maxLines = Wlyrics.getmaxyx()[0]
                 p,a = maxLines // 2 ,maxLines - maxLines // 2
