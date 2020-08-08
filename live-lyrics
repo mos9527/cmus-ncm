@@ -3,6 +3,7 @@
 
 from os import pathsep
 import re,time,sys,os
+from re import findall
 from threading import Thread
 import subprocess
 from collections import defaultdict
@@ -76,28 +77,27 @@ class LrcParser:
                 try:
                     mm,ss = IDTag.split(':') 
                     ss,xx = ss.split('.') # xx is hunderth of a second
-                    timestamp = int(int(mm) * 60 + int(ss) + int(xx) * 0.01) # round them up as we don't need millisecond percison here
+                    timestamp = int(mm) * 60 + int(ss) + int(xx) * 0.01 # round them up as we don't need millisecond percison here
                 except:
                     pass
                 self.lyrics[timestamp] = (IDTag,Lyrics)
     
-    def find(self,timestamp,window=0):
+    def find(self,timestamp):
         '''Finds closest match in our hashable
             
             Returns `(timestamp_seconds,lyrics,indexof)`
 
-            The `window` argument is reserved as all timestamps are converted down to intergers
+            Returns None if the match isn't inside the window
         '''
         # Again,this is very inefficient as its big o notation's linear O(n)        
-        timestamp,delta_m,bestmatch,index=int(timestamp),-1,None,0
+        timestamp,delta_m,bestmatch,index=int(timestamp),None,None,0
         for ts,lr in self.lyrics.items(): # ts:timestamp,lr:lyrics
             index += 1
             delta_m_1 = ts - timestamp
-            if delta_m_1 >= 0: # Only lyrics ahead                
-                delta_m_1 = abs(delta_m_1)
-                if (delta_m < 0 or delta_m_1 <= delta_m) and delta_m_1 <= window:
+            if delta_m_1 <= 0: # only lyrics that are behind the timestamp
+                if delta_m is None or abs(delta_m_1) <= delta_m:
                     # distance's lower,update
-                    delta_m = delta_m_1
+                    delta_m = abs(delta_m_1)
                     bestmatch = (ts,lr,index)
         return bestmatch
 # endregion
@@ -150,7 +150,7 @@ def JustifiyStr(string,mode='l',length=10,fill=' '):
     '''Justify a string's display length (CJK Compatiable)'''
     widthTotal,strTotal = 0,''
     for c in string:
-        width = 2 if unicodedata.east_asian_width(c) in 'WFA' else 1
+        width = 2 if unicodedata.east_asian_width(c) in 'WF' else 1
         # CJK (east asian) chars are ususally 2 ASCII chars long in monospace fonts
         if widthTotal + width > length:break
         else:
@@ -221,7 +221,7 @@ class Subthread(Thread):
                             UpdateStatus('Lyrics file not found : ' + path)
                             self.lrc = None
                             return True                        
-                        self.lrc = LrcParser(open(path,encoding='utf-8').read())                    
+                        self.lrc = LrcParser(open(path,encoding='utf-8').read())               
                     # update current status                                        
                     UpdateStatus(f'{status["status"][0].capitalize()} {next(self.spinner)} {status["file"][0]} | {status["position"][0]}s / {status["duration"][0]}s')     
                     self.status = status                              
@@ -234,7 +234,12 @@ class Subthread(Thread):
                 p,a = maxLines // 2 ,maxLines - maxLines // 2
                 # the count for lyrics from P-revious line and A-fter lines
                 currentTimestamp            = self.status['position'][0]
-                mTimestamp,mLyrics,mIndex   = self.lrc.find(currentTimestamp) # m -> modified
+                find                        = self.lrc.find(currentTimestamp) # m -> modified
+                if find:
+                    mTimestamp,mLyrics,mIndex   = find
+                else:
+                    mTimestamp,mLyrics,mIndex   = (*list(self.lrc.lyrics.items())[0],0)
+                                                                              # nothing found,use 1st line instead
                 fTimestamp,fLyrics = mLyrics                                  # f -> formatted
                 # where the key is the matching timestamp,value is the lyics itself               
                 UpdateTitle(f'{fTimestamp} / {mTimestamp}s - {currentTimestamp}s ' + fLyrics.replace("\t"," "))
