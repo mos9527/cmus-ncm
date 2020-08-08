@@ -81,24 +81,24 @@ class LrcParser:
                     pass
                 self.lyrics[timestamp] = (IDTag,Lyrics)
     
-    def find(self,timestamp,lookahead=False):
+    def find(self,timestamp,window=0):
         '''Finds closest match in our hashable
             
             Returns `(timestamp_seconds,lyrics,indexof)`
+
+            The `window` argument is reserved as all timestamps are converted down to intergers
         '''
         # Again,this is very inefficient as its big o notation's linear O(n)        
         timestamp,delta_m,bestmatch,index=int(timestamp),-1,None,0
         for ts,lr in self.lyrics.items(): # ts:timestamp,lr:lyrics
             index += 1
             delta_m_1 = ts - timestamp
-            if       lookahead and delta_m_1 >= 0:pass
-            elif not lookahead and delta_m_1 <= 0:pass
-            else:continue # Not satisfying the checks:either looked ahead but delta is negative or looked behind but delta is positve                          
-            delta_m_1 = abs(delta_m_1)
-            if delta_m < 0 or delta_m_1 <= delta_m:
-                # distance's lower,update
-                delta_m = delta_m_1
-                bestmatch = (ts,lr,index)
+            if delta_m_1 >= 0: # Only lyrics ahead                
+                delta_m_1 = abs(delta_m_1)
+                if (delta_m < 0 or delta_m_1 <= delta_m) and delta_m_1 <= window:
+                    # distance's lower,update
+                    delta_m = delta_m_1
+                    bestmatch = (ts,lr,index)
         return bestmatch
 # endregion
 
@@ -200,9 +200,6 @@ class Subthread(Thread):
         self.spinner = spinner()
         UpdateStatus('Connecting to cmus...')   
         return super().__init__(*a,**k)
-    
-    def status_string(self):
-        return f'{self.status["status"][0].capitalize()} {next(self.spinner)} {self.status["file"][0]} | {self.status["position"][0]}s / {self.status["duration"][0]}s'
 
     def run(self):        
         while True:
@@ -225,9 +222,9 @@ class Subthread(Thread):
                             self.lrc = None
                             return True                        
                         self.lrc = LrcParser(open(path,encoding='utf-8').read())                    
-                    # update current status                    
-                    self.status = status
-                    UpdateStatus(self.status_string())                    
+                    # update current status                                        
+                    UpdateStatus(f'{status["status"][0].capitalize()} {next(self.spinner)} {status["file"][0]} | {status["position"][0]}s / {status["duration"][0]}s')     
+                    self.status = status                              
                     return True
             def UpdateLRC():
                 if not self.lrc:
@@ -240,7 +237,8 @@ class Subthread(Thread):
                 mTimestamp,mLyrics,mIndex   = self.lrc.find(currentTimestamp) # m -> modified
                 fTimestamp,fLyrics = mLyrics                                  # f -> formatted
                 # where the key is the matching timestamp,value is the lyics itself               
-                UpdateTitle(fLyrics.replace('\t',' ')) # use normal spaces to avoid splitting into rows
+                UpdateTitle(f'{fTimestamp} / {mTimestamp}s - {currentTimestamp}s ' + fLyrics.replace("\t"," "))
+                # use normal spaces to avoid splitting into rows
                 pS,aE = mIndex - p - 1,mIndex + a + 1
                 # previous S-tarting & A-fter ending index
                 pS,aE = pS if pS >= 0 else 0,aE if aE <= len(self.lrc.lyrics.keys()) else len(self.lrc.lyrics.keys())
