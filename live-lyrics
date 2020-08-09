@@ -8,100 +8,8 @@ from threading import Thread
 import subprocess
 from collections import defaultdict
 import curses,threading,unicodedata
-# region LRC Parser
-
+from pyncm import LrcParser
 check_interval = 0.5
-
-# * Making the wheels again. I forgot that lrc parsers for python already exist while I was coding this lol
-
-def LrcProperty(func):
-    @property
-    def wrapper(*a,**k):
-        try:
-            return func(*a,**k)
-        except Exception as e:
-            # sys.stderr.write('[!] Error while getting lyrics attribute %s:%s' % (func.__name__,e))
-            return None        
-    return wrapper
-
-class LrcRegexes:
-    LIDTag_= re.compile(r'(?<=\[)[^\[\]]*(?=\])')
-    LIDTag_Type = re.compile(r'[a-z]{2,}(?=:)')
-    LIDTag_Content = re.compile(r'(?<=[a-z]{2}:).*')
-    LLyrics_ = re.compile(r'(?<=\]).*')
-    LBrackets = re.compile(r'(?<=\[).*(?=\])')
-
-class LrcParser:
-    '''
-    Parses lrc into mutable Python objects
-    '''
-    # region Properties from Wikipedia [https://en.wikipedia.org/wiki/LRC_(file_format)]
-    @LrcProperty
-    def Artist(self):return self.ar 
-    @LrcProperty
-    def Album(self):return self.al
-    @LrcProperty
-    def Title(self):return self.ti
-    @LrcProperty
-    def Author(self):return self.au
-    @LrcProperty
-    def Length(self):return self.length
-    @LrcProperty
-    def LRCAuthor(self):return self.by
-    @LrcProperty
-    def Offset(self):return self.offset
-    @LrcProperty
-    def Program(self):return self.re
-    @LrcProperty
-    def ProgramVersion(self):return self.ve
-    # endregion
-
-    def __init__(self,lrc):
-        '''
-        Takes lyrics in `LRC` format,then provides lyrics based on timestamps
-        '''
-        # Parsing lrc,line by line
-        self.lyrics = {}
-        for line in lrc.split('\n'):
-            IDTag           = ''.join(LrcRegexes.LIDTag_.findall(line))
-            IDTagType       = ''.join(LrcRegexes.LIDTag_Type.findall(IDTag))
-            IDTagContent    = ''.join(LrcRegexes.LIDTag_Content.findall(IDTag))
-            Lyrics          = ''.join(LrcRegexes.LLyrics_.findall(line))
-            if IDTagType:
-                # Tag's type is set,write as class attribute
-                setattr(self,IDTagType,IDTagContent)
-            elif IDTag:
-                # Tag's type is not set but we got the values,treat as lyrics
-                # We'll use the timestamp (into seconds) as lyrics' keys,as hashtables can handle that
-                timestamp = 0
-                try:
-                    mm,ss = IDTag.split(':') 
-                    ss,xx = ss.split('.') # xx is hunderth of a second,but NE didn't think so
-                    timestamp = int(mm) * 60 + int(ss) + int(xx) * (0.1 ** len(xx)) # <- workaround
-                    if self.Offset:timestamp += float(self.Offset)
-                except:
-                    pass
-                self.lyrics[timestamp] = (IDTag,Lyrics)
-    
-    def find(self,timestamp):
-        '''Finds closest match in our hashable
-            
-            Returns `(timestamp_seconds,lyrics,indexof)`
-
-            Returns None if the match isn't inside the window
-        '''
-        # Again,this is very inefficient as its big o notation's linear O(n)        
-        timestamp,delta_m,bestmatch,index=int(timestamp),None,None,0
-        for ts,lr in self.lyrics.items(): # ts:timestamp,lr:lyrics
-            index += 1
-            delta_m_1 = ts - timestamp
-            if delta_m_1 <= 0: # only lyrics that are behind the timestamp
-                if delta_m is None or abs(delta_m_1) <= delta_m:
-                    # distance's lower,update
-                    delta_m = abs(delta_m_1)
-                    bestmatch = (ts,lr,index)
-        return bestmatch
-# endregion
 
 # region C* Related stuff
 def ReadCmusStatus() -> dict:
@@ -235,21 +143,22 @@ class Subthread(Thread):
                 p = maxLines // 2 
                 # the count for lyrics from P-revious 
                 currentTimestamp            = self.status['position'][0]
-                find                        = self.lrc.find(currentTimestamp) # m -> modified
+                find                        = self.lrc.Find(currentTimestamp) # m -> modified
                 if find:
                     mTimestamp,mLyrics,mIndex   = find
                 else:
                     mTimestamp,mLyrics,mIndex   = (*list(self.lrc.lyrics.items())[0],0)
-                                                                              # nothing found,use 1st line instead
-                fTimestamp,fLyrics = mLyrics                                  # f -> formatted
+                                                                              # nothing found,no lyrics are behind our timestamp,use 1st line instead
+                fTimestamp,fLyrics = mLyrics[0]                               # f -> formatted
+                fLyrics = '\t'.join([f[1] for f in mLyrics])
                 # where the key is the matching timestamp,value is the lyics itself               
-                UpdateTitle(f'{fTimestamp} / {mTimestamp}s - {currentTimestamp}s ' + fLyrics.replace("\t"," "))
+                UpdateTitle(JustifiyStr(f'{fTimestamp} / {currentTimestamp}s ',length=16) + '│ ' + fLyrics.replace("\t"," "))
                 # use normal spaces to avoid splitting into rows
                 pS = mIndex - p - 1 
                 # previous S-tarting index
                 pS = pS if pS >= 0 else 0
                 aE = pS + maxLines            
-                lines = [i[1] for i in list(self.lrc.lyrics.values())[pS:aE]]
+                lines = ['\t'.join([n[1] for n in i]) for i in list(self.lrc.lyrics.values())[pS:aE]]
                 UpdateLyrics(lines,lines.index(fLyrics))                
                 return True
             try:
