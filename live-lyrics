@@ -143,11 +143,10 @@ class Subthread(Thread):
                 p = maxLines // 2 
                 # the count for lyrics from P-revious 
                 currentTimestamp            = self.status['position'][0]
-                try:
-                    find                        = self.lrc.Find(currentTimestamp) # m -> modified
-                except:
-                    find                        = (*list(self.lrc.lyrics.items())[0],0)
-                                
+
+                find                        = self.lrc.Find(self.lrc.lyrics_sorted,currentTimestamp) # m -> modified                
+                if not find:find            = (*list(self.lrc.lyrics_sorted.items())[0],0)                                        
+                
                 mTimestamp,mLyrics,mIndex   = find                            # nothing found,no lyrics are behind our timestamp,use 1st line instead                                                                              
                 fTimestamp,fLyrics = mLyrics[0]                               # f -> formatted
                 fLyrics = '\t'.join([f[1] for f in mLyrics])
@@ -158,8 +157,7 @@ class Subthread(Thread):
                 # previous S-tarting index
                 pS = pS if pS >= 0 else 0
                 aE = pS + maxLines            
-                lines = ['\t'.join([n[1] for n in i]) for i in list(self.lrc.lyrics.values())[pS:aE]]
-                idx = lines.index(fLyrics)
+                lines = ['\t'.join([n[1] for n in i]) for i in list(self.lrc.lyrics_sorted.values())[pS:aE]]
                 UpdateLyrics(lines,mIndex - pS - 1)                
                 return True
             try:
