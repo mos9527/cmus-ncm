@@ -4,7 +4,7 @@
 from os import pathsep
 import re,time,sys,os
 from re import findall
-from threading import Thread
+from threading import Thread, current_thread
 import subprocess
 from collections import defaultdict
 import curses,threading,unicodedata
@@ -74,12 +74,12 @@ def JustifiyStr(string,mode='l',length=10,fill=' '):
     else:strTotal += fill * (length - widthTotal)                            # Left-justify
     return strTotal
 
-def ColumnifyStr(string,justify_mode='l') -> str:
+def ColumnifyStr(string,justify_mode='l',cols=0) -> str:
     '''Put anystring into the length of our console column
     
         When encoutering tabs (\t),such line of string will be divided into equally wide rows
     '''
-    cols = curses.COLS - 1
+    cols = curses.COLS - 1 if not cols else cols
     tabs = string.split('\t')
     row_width = cols // len(tabs)
     tabs = [JustifiyStr(s,mode=justify_mode,length=row_width) for s in tabs]    
@@ -95,7 +95,7 @@ def UpdateLyrics(lines,highlight_no = -1,j : str='l'):
         dtotal = Wlyrics.getmaxyx()[0] - len(lines)
         lines = lines + [''] * dtotal
     for l in range(0,Wlyrics.getmaxyx()[0]):
-        tok = ColumnifyStr(lines[l],'c')
+        tok = ColumnifyStr(lines[l],'c',Wlyrics.getmaxyx()[1] - 1)
         Wlyrics.addstr(l,0,tok,curses.color_pair(2 + (l == highlight_no)))
 def KillCurses():
     curses.endwin()
