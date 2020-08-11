@@ -6,7 +6,7 @@ from sys import stderr
 # region Colors
 COLOR_ACCENT            = curses.COLOR_WHITE
 COLOR_BACKGROUND_BARS   = curses.COLOR_BLUE
-COLOR_BACKGROUND_LYRICS = curses.COLOR_RED
+COLOR_BACKGROUND_LYRICS = curses.COLOR_BLACK
 COLOR_HIGHLIGHT         = curses.COLOR_YELLOW
 # endregion
 
