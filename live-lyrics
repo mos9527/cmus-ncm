@@ -8,6 +8,7 @@ from threading import Thread, current_thread
 import subprocess
 from collections import defaultdict
 import curses,threading,unicodedata
+from typing import Set
 from pyncm import LrcParser
 check_interval = 0.5
 
@@ -34,14 +35,19 @@ L-2............[ LYRICS LINE +1 ]..............
 L-1................[STATUS]....................
 '''
 stdscr,Wtitle,Wlyrics,Wstatus = (None,)*4
-def InitCurses(scr):# : curses._CursesWindow):
-    global stdscr,Wtitle,Wlyrics,Wstatus
-    stdscr  = scr
+
+def SetWindowsMargin():
+    global Wtitle,Wlyrics,Wstatus
+    curses.resizeterm(*stdscr.getmaxyx())
     Wtitle  = curses.newwin(2,curses.COLS,0,0)
     Wlyrics = curses.newwin(curses.LINES - 2,curses.COLS,1,0)
     Wstatus = curses.newwin(2,curses.COLS,curses.LINES - 1,0)
+    
+def InitCurses(scr):# : curses._CursesWindow):
+    global stdscr
+    stdscr  = scr
     curses.start_color()
-
+    SetWindowsMargin()
     curses.init_pair(1,curses.COLOR_WHITE,curses.COLOR_BLUE)
     curses.init_pair(2,curses.COLOR_WHITE,curses.COLOR_BLACK)
     curses.init_pair(3,curses.COLOR_YELLOW,curses.COLOR_BLACK)
@@ -180,6 +186,9 @@ def CursesMain(scr):
     while True:
         keystroke = stdscr.getch()
         if keystroke in [ord('q') , 27]:sys.exit(0) # Exit if q / Esc is pressed
+        elif keystroke in [curses.KEY_RESIZE]:
+            SetWindowsMargin()
+            RefreshAll()
 # endregion
 
 curses.wrapper(CursesMain)
