@@ -1,16 +1,24 @@
 # This is a Python script. The executable path should be added by `setup`
 # Still WIP,but already looks pretty promising
 
-from os import pathsep
-import re,time,sys,os
-from re import findall
-from threading import Thread, current_thread
+import curses
+from sys import stderr
+# region Colors
+COLOR_ACCENT            = curses.COLOR_WHITE
+COLOR_BACKGROUND_BARS   = curses.COLOR_BLUE
+COLOR_BACKGROUND_LYRICS = curses.COLOR_RED
+COLOR_HIGHLIGHT         = curses.COLOR_YELLOW
+# endregion
+
+import time,sys,os,unicodedata
+from threading import Thread
 import subprocess
 from collections import defaultdict
-import curses,threading,unicodedata
-from typing import Set
+
 from pyncm import LrcParser
 check_interval = 0.5
+
+COLS,LINES = 0,0
 
 # region C* Related stuff
 def ReadCmusStatus() -> dict:
@@ -38,19 +46,22 @@ stdscr,Wtitle,Wlyrics,Wstatus = (None,)*4
 
 def SetWindowsMargin():
     global Wtitle,Wlyrics,Wstatus
-    curses.resizeterm(*stdscr.getmaxyx())
-    Wtitle  = curses.newwin(2,curses.COLS,0,0)
-    Wlyrics = curses.newwin(curses.LINES - 2,curses.COLS,1,0)
-    Wstatus = curses.newwin(2,curses.COLS,curses.LINES - 1,0)
+    stdscr.clear()
+    Wtitle  = curses.newwin(2,COLS,0,0)
+    Wlyrics = curses.newwin(LINES - 2,COLS,1,0)
+    Wstatus = curses.newwin(2,COLS,LINES - 1,0)
     
 def InitCurses(scr):# : curses._CursesWindow):
-    global stdscr
+    global stdscr,COLS,LINES
     stdscr  = scr
     curses.start_color()
+    LINES,COLS = stdscr.getmaxyx()
+
     SetWindowsMargin()
-    curses.init_pair(1,curses.COLOR_WHITE,curses.COLOR_BLUE)
-    curses.init_pair(2,curses.COLOR_WHITE,curses.COLOR_BLACK)
-    curses.init_pair(3,curses.COLOR_YELLOW,curses.COLOR_BLACK)
+    
+    curses.init_pair(1,COLOR_ACCENT,COLOR_BACKGROUND_BARS)
+    curses.init_pair(2,COLOR_ACCENT,COLOR_BACKGROUND_LYRICS)
+    curses.init_pair(3,COLOR_HIGHLIGHT,COLOR_BACKGROUND_LYRICS)
 
     curses.cbreak()
     curses.noecho()
@@ -85,7 +96,7 @@ def ColumnifyStr(string,justify_mode='l',cols=0) -> str:
     
         When encoutering tabs (\t),such line of string will be divided into equally wide rows
     '''
-    cols = curses.COLS - 1 if not cols else cols
+    cols = COLS - 1 if not cols else cols
     tabs = string.split('\t')
     row_width = cols // len(tabs)
     tabs = [JustifiyStr(s,mode=justify_mode,length=row_width) for s in tabs]    
@@ -96,7 +107,7 @@ def UpdateTitle(s):
 def UpdateStatus(s):
     Wstatus.addstr(0,0,ColumnifyStr(s),curses.color_pair(1))
 def UpdateLyrics(lines,highlight_no = -1,j : str='l'):
-    if not len(lines) >= curses.LINES:
+    if not len(lines) >= LINES:
         # padding with empty lines (centered)
         dtotal = Wlyrics.getmaxyx()[0] - len(lines)
         lines = lines + [''] * dtotal
@@ -176,6 +187,7 @@ class Subthread(Thread):
             time.sleep(check_interval)
 
 def CursesMain(scr):
+    global COLS,LINES
     InitCurses(scr)
     UpdateTitle('live-lyrics')     
     # Start a subthread for checking cmus events
@@ -185,10 +197,13 @@ def CursesMain(scr):
     Subthread(daemon=True).start()
     while True:
         keystroke = stdscr.getch()
-        if keystroke in [ord('q') , 27]:sys.exit(0) # Exit if q / Esc is pressed
-        elif keystroke in [curses.KEY_RESIZE]:
+        if keystroke in [ord('q') , ord('Q') , 27]:
+            sys.exit(0) # Exit if q / Esc is pressed
+        elif keystroke in [curses.KEY_RESIZE]:            
+            LINES,COLS = stdscr.getmaxyx()
             SetWindowsMargin()
             RefreshAll()
+        
 # endregion
 
 curses.wrapper(CursesMain)
