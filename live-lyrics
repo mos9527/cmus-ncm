@@ -91,7 +91,7 @@ def JustifiyStr(string,mode='l',length=10,fill=' '):
     else:strTotal += fill * (length - widthTotal)                            # Left-justify
     return strTotal
 
-def ColumnifyStr(string,justify_mode='l',cols=0) -> str:
+def ColumnifyStr(string,justify_mode='l',cols=0,delimiter=' ') -> str:
     '''Put anystring into the length of our console column
     
         When encoutering tabs (\t),such line of string will be divided into equally wide rows
@@ -100,7 +100,7 @@ def ColumnifyStr(string,justify_mode='l',cols=0) -> str:
     tabs = string.split('\t')
     row_width = cols // len(tabs)
     tabs = [JustifiyStr(s,mode=justify_mode,length=row_width) for s in tabs]    
-    return '│'.join(tabs)
+    return delimiter.join(tabs)
 
 def UpdateTitle(s):
     Wtitle.addstr(0,0,ColumnifyStr(s),curses.color_pair(1))
