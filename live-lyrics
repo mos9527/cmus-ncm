@@ -134,7 +134,7 @@ class Subthread(Thread):
             def CheckStatus():
                 if not status:
                     # No status;
-                    UpdateStatus('Lost connection to cmus!')
+                    UpdateStatus('No connection to cmus')
                     return False
                 else:
                     # Status aquired
@@ -155,6 +155,7 @@ class Subthread(Thread):
             def UpdateLRC():
                 if not self.lrc:
                     UpdateLyrics(['No lyrics available'])
+                    UpdateTitle('live-lyrics - Instrumental or missing lyrics')
                     return False
                 maxLines = Wlyrics.getmaxyx()[0]
                 p = maxLines // 2 
@@ -195,6 +196,7 @@ def CursesMain(scr):
     RefreshAll()
 
     Subthread(daemon=True).start()
+
     while True:
         keystroke = stdscr.getch()
         if keystroke in [ord('q') , ord('Q') , 27]:
@@ -205,6 +207,5 @@ def CursesMain(scr):
             RefreshAll()
         
 # endregion
-
 curses.wrapper(CursesMain)
 # Executes the script
