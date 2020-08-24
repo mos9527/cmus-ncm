@@ -15,7 +15,7 @@ from threading import Thread
 import subprocess
 from collections import defaultdict
 
-from pyncm import LrcParser
+from pyncm.utils.lrcparser import LrcParser
 check_interval = 0.5
 
 COLS,LINES = 0,0
