@@ -26,7 +26,7 @@ _type,id = parser.parse_args().__dict__.values()
 # Load config from PyNCM for output folder
 config = subprocess.run([sys.executable,'-m','pyncm','viewcfg'],capture_output=True).stdout.decode()
 config = json.loads(config)
-output = config['misc']['output']
+output = config['pyncm']['output']
 
 # Compose the command
 command = [sys.executable,'-m','pyncm',_type,'--id',id,'--report-output','stdout']
