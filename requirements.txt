@@ -1,1 +1,1 @@
-pyncm
+pyncm<=1.6.1
