@@ -2,7 +2,6 @@
 # Still WIP,but already looks pretty promising
 
 import curses
-from sys import stderr
 # region Colors
 COLOR_ACCENT            = curses.COLOR_WHITE
 COLOR_BACKGROUND_BARS   = curses.COLOR_BLUE
@@ -15,11 +14,11 @@ from threading import Thread
 import subprocess
 from collections import defaultdict
 
-from pyncm.utils import LrcParser
+from pyncm.utils.lrcparser import LrcParser
 check_interval = 0.5
 
 COLS,LINES = 0,0
-
+status = None
 # region C* Related stuff
 def ReadCmusStatus() -> dict:
     process = subprocess.run(['cmus-remote','-Q'],capture_output=True)
@@ -29,6 +28,7 @@ def ReadCmusStatus() -> dict:
         result = defaultdict(list)
         for k,v in [(l[:l.index(' ')],l[l.index(' ') + 1:]) for l in process.stdout.decode().split('\n') if ' ' in l]:result[k].append(v)
         for k in ['tag','set']:result[k] = {s.split(' ')[0]:s[len(s.split(' ')[0]) + 1:] for s in result[k]}
+        status = result
         return result
 # endregion
 
@@ -128,8 +128,9 @@ class Subthread(Thread):
         return super().__init__(*a,**k)
 
     def run(self):        
+        global status
         while True:
-            status = ReadCmusStatus()
+            ReadCmusStatus()
             # Tries to read status from cmus
             def CheckStatus():
                 if not status:
@@ -156,18 +157,20 @@ class Subthread(Thread):
                 if not self.lrc:
                     UpdateLyrics(['No lyrics available'])
                     UpdateTitle('live-lyrics - Instrumental or missing lyrics')
-                    return False
+                    return False                
                 maxLines = Wlyrics.getmaxyx()[0]
                 p = maxLines // 2 
                 # the count for lyrics from P-revious 
-                currentTimestamp            = self.status['position'][0]
-
-                find                        = self.lrc.Find(self.lrc.lyrics_sorted,currentTimestamp) # m -> modified                
-                if not find:find            = (*list(self.lrc.lyrics_sorted.items())[0],0)                                        
+                currentTimestamp            = int(self.status['position'][0])
                 
-                mTimestamp,mLyrics,mIndex   = find                            # nothing found,no lyrics are behind our timestamp,use 1st line instead                                                                              
-                fTimestamp,fLyrics = mLyrics[0]                               # f -> formatted
-                fLyrics = '\t'.join([f[1] for f in mLyrics])
+                find                        = self.lrc.Find(self.lrc.lyrics_sorted,currentTimestamp)
+
+                if not find:find            = (*list(self.lrc.lyrics_sorted.items())[0],0)                                        
+                # nothing found,no lyrics are behind our timestamp,use 1st line instead
+                mTimestamp,mLyrics,mIndex   = find                            # m -> modified                
+                find_prev                   = list(self.lrc.lyrics_sorted.items())[mIndex - 1]
+                fTimestamp,fLyrics          = find_prev                        # f -> formatted
+                fLyrics = '\t'.join([f[1] for f in fLyrics])
                 # where the key is the matching timestamp,value is the lyics itself               
                 UpdateTitle(JustifiyStr(f'{fTimestamp} / {currentTimestamp}s ',length=16) + '│ ' + fLyrics.replace("\t"," "))
                 # use normal spaces to avoid splitting into rows
@@ -199,13 +202,18 @@ def CursesMain(scr):
 
     while True:
         keystroke = stdscr.getch()
-        if keystroke in [ord('q') , ord('Q') , 27]:
+        if keystroke in {ord('q') , ord('Q') , 27}:
             sys.exit(0) # Exit if q / Esc is pressed
-        elif keystroke in [curses.KEY_RESIZE]:            
+        elif keystroke == curses.KEY_LEFT: # Left
+            pos = int(ReadCmusStatus()['position'][0])
+            os.system('cmus-remote --seek %d' % (pos - 5))
+        elif keystroke == curses.KEY_RIGHT: # Right
+            pos = int(ReadCmusStatus()['position'][0])
+            os.system('cmus-remote --seek %d' % (pos + 5))
+        elif keystroke in {curses.KEY_RESIZE}:            
             LINES,COLS = stdscr.getmaxyx()
             SetWindowsMargin()
             RefreshAll()
-        
 # endregion
 curses.wrapper(CursesMain)
 # Executes the script

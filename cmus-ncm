@@ -1,62 +1,64 @@
+#!/usr/bin/python
 # This is a Python script. The executable path should be added by `setup`
 import argparse,subprocess,sys,json,os
+output = '~/Music'
 
-stderr = open('last-exec.log','w',encoding='utf-8')
-# All the logs,both produced by PyNCM and this script will be outputed to `last-exec.log`
 parser = argparse.ArgumentParser(
     description='Netease Cloud Music proxy for C* Music player',formatter_class=argparse.RawTextHelpFormatter
 )
-parser.add_argument(
-    'type',metavar='TYPE',help='''What type of ID is supplied
-[song]      The ID is for a song
-[album]     The ID is for an album
-[playlist]  The ID is for a playlist    
-''')
-parser.add_argument('id',metavar='ID',help='''The said ID. 
+parser.add_argument('url',metavar='URL',help='''URL for the resource.
+
+e.g. https://music.163.com/playlist?id=3199245372
 
 Other arguments are determined by PyNCM\'s config file.
 
 see https://github.com/greats3an/pyncm 
     https://github.com/greats3an/cmus-ncm
 for more info''')
-
+parser.add_argument('--stderr',help='Write log to stderr directly',action='store_true')
 parser.parse_args()
-_type,id = parser.parse_args().__dict__.values()
+args = parser.parse_args()
+url = args.url
 
-# Load config from PyNCM for output folder
-config = subprocess.run([sys.executable,'-m','pyncm','viewcfg'],capture_output=True).stdout.decode()
-config = json.loads(config)
-output = config['pyncm']['output']
-
+if not args.stderr:
+    # All the logs,both produced by PyNCM and this script will be outputed to `last-exec.log`
+    stderr = open('last-exec.log','w',encoding='utf-8')
+else:
+    stderr = sys.stderr
 # Compose the command
-command = [sys.executable,'-m','pyncm',_type,'--id',id,'--report-output','stdout']
+
+command = [sys.executable,'-m','pyncm','--output',os.path.expanduser('~/Music'),*url.split()]
 stderr.write(f'[+] Using command {" ".join(command)}\n')
 stderr.write(f'[+] Output folder {output}\n')
 
-os.system(f'cmus-remote -C "echo cmus-ncm is working...{_type} {id}"')
+os.system(f'cmus-remote -C "echo cmus-ncm is working...{url}"')
 
-process = subprocess.Popen(command,stderr=stderr,stdout=subprocess.PIPE)
+process = subprocess.Popen(command,stderr=subprocess.PIPE)
 returncode = None
 while returncode == None:
     returncode = process.poll()
-    # Break the loop once process is done
-    newline,newchar = '',process.stdout.read(1)
-    while len(newchar) > 0 and not ord(newchar) in [ord('\r'),ord('\n')]:
-        # The linebreaks are '\r' or '\n'                     
-        newline += chr(newchar[0])
-        newchar = process.stdout.read(1)                   
-    if newline:os.system(f'cmus-remote -C "echo {newline}"')
+    line = bytearray()
+    while process.stderr.readable() and returncode is None:
+        returncode = process.poll()
+        line += process.stderr.read(1)            
+        if line.endswith(b'\r') or line.endswith(b'\n'):
+            break
+        if line.endswith(b'\0'):
+            returncode = True 
+    line = line[:-1].decode()        
+    stderr.write(line + '\n')
+    os.system(f'cmus-remote -C "echo {line}"')
 
 if returncode == 0:
     stderr.write(f'[+] Command executed successfully\n')
 else:
     stderr.write(f'[+] Command failed! Exiting...\n')
-    os.system(f'cmus-remote -C "echo cmus-ncm {_type} {id} failed!"')
+    os.system(f'cmus-remote -C "echo cmus-ncm {url} failed!"')
     sys.exit(1)
 
 # Control C* via cmus-remote
 os.system('cmus-remote -C "clear"')
-os.system(f'cmus-remote -C "add {output}"')
+os.system(f'cmus-remote -C "add ~/Music"')
 os.system('cmus-remote -C "update-cache"')
 os.system('cmus-remote -C "echo cmus-ncm has added the songs to your library"')
 sys.exit(0)

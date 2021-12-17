@@ -1,0 +1,16 @@
+#!/usr/bin/python
+import subprocess
+process = subprocess.Popen(['python','console-test'],stderr=subprocess.PIPE)
+returncode = None
+while returncode is None:
+    returncode = process.poll()
+    if returncode is None:
+        line = bytearray()
+        # read one line
+        while process.stderr.readable() and returncode is None:
+            returncode = process.poll()
+            line += process.stderr.read(1)            
+            if line.endswith(b'\r') or line.endswith(b'\n'):
+                break            
+        line = line.decode()        
+        print(line)
