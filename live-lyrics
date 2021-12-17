@@ -1,4 +1,4 @@
-# This is a Python script. The executable path should be added by `setup`
+#!/usr/bin/python
 # Still WIP,but already looks pretty promising
 
 import curses
