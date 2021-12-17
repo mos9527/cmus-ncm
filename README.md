@@ -2,11 +2,11 @@
 用于 [C* Music Player](https://cmus.github.io/) 的 [网易云音乐](https://music.163.com/) 解析插件
 
 # 安装
-**请先安装好 Python 3.X 版本**，使用以下脚本可快速完成安装
+**请先安装好 Python 3.X 版本**
 	
-	curl https://raw.githubusercontent.com/greats3an/cmus-ncm/master/setup | bash -s [Python 解释器]
-e.g. `curl https://raw.githubusercontent.com/greats3an/cmus-ncm/master/setup | bash -s python3.8`
-	在随后的选项中，选择 1 安装 cmus-ncm
+	curl https://raw.githubusercontent.com/greats3an/cmus-ncm/master/setup | bash -s python
+
+在随后的选项中，选择 1 安装 cmus-ncm
 # 使用
 ## 配置
 同 [PyNCM](https://github.com/greats3an/pyncm) 配置方法
