@@ -2,11 +2,10 @@
 用于 [C* Music Player](https://cmus.github.io/) 的 [网易云音乐](https://music.163.com/) 解析插件
 
 # 安装
-**请先安装好 Python 3.X 版本**，使用以下脚本可快速完成安装
-	
-	curl https://raw.githubusercontent.com/greats3an/cmus-ncm/master/setup | bash -s [Python 解释器]
-e.g. `curl https://raw.githubusercontent.com/greats3an/cmus-ncm/master/setup | bash -s python3.8`
-	在随后的选项中，选择 1 安装 cmus-ncm
+自行复制文件，使得 `cmus-ncm` 命令有以下输出：
+
+	usage: cmus-ncm [-h] [--stderr] URL
+	cmus-ncm: error: the following arguments are required: URL
 # 使用
 ## 配置
 同 [PyNCM](https://github.com/greats3an/pyncm) 配置方法
@@ -30,12 +29,8 @@ e.g. `curl https://raw.githubusercontent.com/greats3an/cmus-ncm/master/setup | b
 
 用于 [C* Music Player](https://cmus.github.io/) 的 LRC 歌词外挂显示工具
 
-#### 安装
-**请先安装好 Python 3.X 版本**，使用以下脚本可快速完成安装
-	
-	curl https://raw.githubusercontent.com/greats3an/cmus-ncm/master/setup | bash -s [Python 解释器]
-e.g. `curl https://raw.githubusercontent.com/greats3an/cmus-ncm/master/setup | bash -s python3.8`
-	在随后的选项中，选择 2 安装 live-lyrics
+#### 使用
+直接执行即可；歌词会同 `cmus` 自动同步。
 
 #### 要求
 歌词 `(*.lrc)` 需要和歌曲文件同文件名，并在同一目录下
