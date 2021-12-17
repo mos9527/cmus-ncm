@@ -130,7 +130,7 @@ class Subthread(Thread):
     def run(self):        
         global status
         while True:
-            ReadCmusStatus()
+            status = ReadCmusStatus()
             # Tries to read status from cmus
             def CheckStatus():
                 if not status:
